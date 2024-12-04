@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "*.embeddedhtml": "html",
+        "map": "cpp",
+        "fstream": "cpp",
+        "stack": "cpp",
+        "string": "cpp",
+        "iostream": "cpp",
+        "filesystem": "cpp"
+    }
+}
