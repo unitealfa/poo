@@ -1,6 +1,6 @@
 // Game.h
 #pragma once
-#include "services/Grid.h"
+#include "components/Grid.h"
 #include <stack>
 #include <string>
 #include <fstream>  // Pour manipuler les fichiers

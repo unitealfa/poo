@@ -1,6 +1,6 @@
 // DeadCell.h
 #pragma once
-#include "interfaces/Cell.h"
+#include "components/Cell.h"
 
 namespace GameOfLife {
 

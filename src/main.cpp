@@ -1,23 +1,150 @@
-// main.cpp
-#include "services/Game.h"
-#include "services/Grid.h"
-#include "interfaces/Cell.h"
-#include "services/patterns.h"
-#include "components/DeadObstacleCell.h"
-#include <SFML/Graphics.hpp>
 #include <iostream>
-#include <vector>
-#include <string>
-#include <map>
+#include <fstream>
 #include <filesystem>
-namespace fs = std::filesystem;
+#include <vector>
+#include "services/Game.h"
+#include "components/Grid.h"
+#include "components/Cell.h"
+#include "components/patterns.h"
+#include "components/DeadObstacleCell.h"
+#include <thread>
+#include <SFML/Graphics.hpp>
 
+namespace fs = std::filesystem;
 using namespace GameOfLife;
 
 const int cellSize = 10;
 const int sidebarWidth = 200; // Largeur de la barre laterale pour le score
 
+// Fonction pour executer le mode console
+void runConsoleMode() {
+    std::cout << "Mode Console sélectionné." << std::endl;
+
+    // Lister les fichiers dans le dossier "saves/"
+    std::string saveDirectory = "saves/";
+    std::vector<std::string> saveFiles;
+
+    for (const auto& entry : fs::directory_iterator(saveDirectory)) {
+        if (entry.path().extension() == ".txt") {
+            saveFiles.push_back(entry.path().filename().string());
+        }
+    }
+
+    if (saveFiles.empty()) {
+        std::cout << "Aucun fichier de sauvegarde trouvé dans le dossier 'saves/'." << std::endl;
+        return;
+    }
+
+    // Afficher les fichiers disponibles
+    std::cout << "Fichiers disponibles : " << std::endl;
+    for (size_t i = 0; i < saveFiles.size(); ++i) {
+        std::cout << i + 1 << ". " << saveFiles[i] << std::endl;
+    }
+
+    // Demander à l'utilisateur de sélectionner un fichier
+    int choice;
+    std::cout << "Entrez le numéro du fichier à charger : ";
+    std::cin >> choice;
+
+    if (choice < 1 || choice > static_cast<int>(saveFiles.size())) {
+        std::cout << "Choix invalide. Retour au menu principal." << std::endl;
+        return;
+    }
+
+    // Charger le fichier sélectionné
+    std::string selectedFile = saveDirectory + saveFiles[choice - 1];
+    std::ifstream inputFile(selectedFile);
+
+    if (!inputFile.is_open()) {
+        std::cerr << "Erreur : Impossible d'ouvrir le fichier " << selectedFile << std::endl;
+        return;
+    }
+
+    // Lire la grille depuis le fichier
+    std::vector<std::string> grid;
+    std::string line;
+    while (std::getline(inputFile, line)) {
+        grid.push_back(line);
+    }
+    inputFile.close();
+
+    int width = grid[0].size();
+    int height = grid.size();
+
+    std::cout << "Simulation démarrée en mode console. Appuyez sur Ctrl+C pour arrêter." << std::endl;
+
+    // Fonction pour calculer les voisins vivants
+    auto countAliveNeighbors = [&](int x, int y) {
+        int aliveCount = 0;
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dx = -1; dx <= 1; ++dx) {
+                if (dx == 0 && dy == 0) continue; // Ignorer la cellule elle-même
+                int nx = x + dx;
+                int ny = y + dy;
+                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    aliveCount += (grid[ny][nx] == '1');
+                }
+            }
+        }
+        return aliveCount;
+    };
+
+    // Simuler les itérations
+    int maxIterations = 100;
+    for (int iteration = 0; iteration < maxIterations; ++iteration) {
+        // Afficher la grille actuelle
+        std::cout << "Itération : " << iteration + 1 << std::endl;
+        for (const auto& row : grid) {
+            std::cout << row << std::endl;
+        }
+        std::cout << std::string(width, '-') << std::endl;
+
+        // Calculer la prochaine grille
+        std::vector<std::string> newGrid = grid;
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                int aliveNeighbors = countAliveNeighbors(x, y);
+                if (grid[y][x] == '1') {
+                    // Règle : Une cellule vivante reste vivante si elle a 2 ou 3 voisins vivants
+                    newGrid[y][x] = (aliveNeighbors == 2 || aliveNeighbors == 3) ? '1' : '0';
+                } else {
+                    // Règle : Une cellule morte devient vivante si elle a exactement 3 voisins vivants
+                    newGrid[y][x] = (aliveNeighbors == 3) ? '1' : '0';
+                }
+            }
+        }
+
+        // Mettre à jour la grille
+        grid = newGrid;
+
+        // Pause pour mieux visualiser les itérations
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+
+    std::cout << "Simulation terminée." << std::endl;
+}
+
+
 int main() {
+    // Menu de selection du mode
+    std::cout << "Bienvenue dans le Jeu de la Vie !" << std::endl;
+    std::cout << "Selectionnez le mode a executer :" << std::endl;
+    std::cout << "1. Mode Console" << std::endl;
+    std::cout << "2. Mode Graphique" << std::endl;
+    std::cout << "Entrez votre choix : ";
+    int modeChoice;
+    std::cin >> modeChoice;
+
+    if (modeChoice == 1) {
+        // Mode console
+        runConsoleMode();
+        return 0;
+    } else if (modeChoice != 2) {
+        std::cout << "Choix invalide. Fin du programme." << std::endl;
+        return -1;
+    }
+
+    // Mode graphique (code existant)
     int width = 80;
     int height = 80;
     int maxIterations = 1000;
@@ -90,6 +217,19 @@ int main() {
     playSymbol.setPosition(playButton.getPosition().x + 45, playButton.getPosition().y + 5);
     playSymbol.setRotation(90);
 
+    // Bouton "Exit" (Blanc avec un X rouge)
+    sf::RectangleShape exitButton(sf::Vector2f(100, 30));
+    exitButton.setPosition(windowWidth - 160, height * cellSize + 10);
+    exitButton.setFillColor(sf::Color::White);
+
+    sf::Text exitSymbol;
+    exitSymbol.setFont(font);
+    exitSymbol.setString("X");
+    exitSymbol.setCharacterSize(20);
+    exitSymbol.setFillColor(sf::Color::Red);
+    sf::FloatRect exitSymbolBounds = exitSymbol.getLocalBounds();
+    exitSymbol.setOrigin(exitSymbolBounds.left + exitSymbolBounds.width / 2.0f, exitSymbolBounds.top + exitSymbolBounds.height / 2.0f);
+    exitSymbol.setPosition(exitButton.getPosition().x + exitButton.getSize().x / 2.0f, exitButton.getPosition().y + exitButton.getSize().y / 2.0f);
 
     // Bouton "Load" dans le menu d'accueil
     sf::RectangleShape menuLoadButton(sf::Vector2f(200, 60));
@@ -144,12 +284,12 @@ int main() {
     restartSymbol.setFillColor(sf::Color::White);
     restartSymbol.setPosition(restartButton.getPosition().x + 40, restartButton.getPosition().y + 5);
 
-    // Bouton "Save" (Blanc avec un carré noir)
+    // Bouton "Save" (Blanc avec un carre noir)
     sf::RectangleShape saveButton(sf::Vector2f(100, 30));
     saveButton.setPosition(windowWidth / 2 + 230, height * cellSize + 10);
     saveButton.setFillColor(sf::Color::White);
 
-    // Symbole "Save" (Carré noir)
+    // Symbole "Save" (Carre noir)
     sf::RectangleShape saveSymbol(sf::Vector2f(20, 20));
     saveSymbol.setFillColor(sf::Color::Black);
     saveSymbol.setPosition(saveButton.getPosition().x + 40, saveButton.getPosition().y + 5);
@@ -268,7 +408,7 @@ int main() {
     sidebar.setPosition(width * cellSize, 0);
 
     sf::Event event; // Declaration de l'evenement ici pour être accessible partout
-    sf::String userInput; // Variable pour stocker l'entrée de l'utilisateur
+    sf::String userInput; // Variable pour stocker l'entree de l'utilisateur
     std::vector<std::string> saveFiles;  // Liste des fichiers de sauvegarde
     bool isTyping = false; // Indique si l'utilisateur est en train de saisir un nom de fichier
 
@@ -296,15 +436,15 @@ int main() {
                     int mouseX = event.mouseButton.x;
                     int mouseY = event.mouseButton.y;
 
-                    // Vérifiez si le clic est sur le bouton "Play"
+                    // Verifiez si le clic est sur le bouton "Play"
                     if (mouseX >= menuPlayButton.getPosition().x &&
                         mouseX <= menuPlayButton.getPosition().x + menuPlayButton.getSize().x &&
                         mouseY >= menuPlayButton.getPosition().y &&
                         mouseY <= menuPlayButton.getPosition().y + menuPlayButton.getSize().y) {
-                        game.state = Game::Edition; // Passer à l'état Edition
+                        game.state = Game::Edition; // Passer a l'etat Edition
                     }
 
-                    // Vérifier si le clic est sur le bouton "Load"
+                    // Verifier si le clic est sur le bouton "Load"
                     if (mouseX >= menuLoadButton.getPosition().x &&
                         mouseX <= menuLoadButton.getPosition().x + menuLoadButton.getSize().x &&
                         mouseY >= menuLoadButton.getPosition().y &&
@@ -321,17 +461,17 @@ int main() {
                         }
 
                         if (!saveFiles.empty()) {
-                            game.state = Game::LoadMenu; // Passer à l'état de menu de chargement
+                            game.state = Game::LoadMenu; // Passer a l'etat de menu de chargement
                         } else {
-                            std::cout << "Aucun fichier de sauvegarde trouvé." << std::endl;
+                            std::cout << "Aucun fichier de sauvegarde trouve." << std::endl;
                         }
                     }
                 }
             }
-            continue; // Revenir au début de la boucle tant que l'état est "Accueil"
+            continue; // Revenir au debut de la boucle tant que l'etat est "Accueil"
         }
 
-        // Ajouter la gestion de l'état "LoadMenu" après "Accueil"
+        // Ajouter la gestion de l'etat "LoadMenu" après "Accueil"
         if (game.state == Game::LoadMenu) {
             window.clear();
             window.draw(background);  // Dessiner l'image de fond
@@ -356,7 +496,7 @@ int main() {
 
             window.display();
 
-            // Gérer les événements pour la sélection du fichier à charger
+            // Gerer les evenements pour la selection du fichier a charger
             while (window.pollEvent(event)) {
                 if (event.type == sf::Event::Closed) {
                     window.close(); // Fermer l'application
@@ -366,25 +506,25 @@ int main() {
                     int mouseX = event.mouseButton.x;
                     int mouseY = event.mouseButton.y;
 
-                    // Vérifiez si un des fichiers a été cliqué
+                    // Verifiez si un des fichiers a ete clique
                     for (size_t i = 0; i < fileTexts.size(); ++i) {
                         sf::FloatRect bounds = fileTexts[i].getGlobalBounds();
                         if (bounds.contains(mouseX, mouseY)) {
-                            // Charger le fichier sélectionné
+                            // Charger le fichier selectionne
                             std::string filePath = "saves/" + saveFiles[i];
                             game.loadFromFile(filePath);
-                            game.state = Game::Edition; // Passer à l'état Edition après le chargement
+                            game.state = Game::Edition; // Passer a l'etat Edition après le chargement
                             break;
                         }
                     }
                 }
 
                 if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) {
-                    // Retourner à l'écran d'accueil si l'utilisateur appuie sur la touche Échappe
+                    // Retourner a l'ecran d'accueil si l'utilisateur appuie sur la touche echappe
                     game.state = Game::Accueil;
                 }
             }
-            continue; // Revenir au début de la boucle tant que l'état est "LoadMenu"
+            continue; // Revenir au debut de la boucle tant que l'etat est "LoadMenu"
         }
 
 
@@ -424,7 +564,7 @@ int main() {
                             game.getGrid().setCell(cellX, y, new AliveCell());
                         }
                     } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) && event.key.code == sf::Keyboard::B) {
-                        // Carré de 4 cellules
+                        // Carre de 4 cellules
                         for (const auto& offset : squareBlock.cells) {
                             int x = cellX + offset.first;
                             int y = cellY + offset.second;
@@ -449,7 +589,7 @@ int main() {
                         isHelpVisible = !isHelpVisible;
                     }
 
-                    // Gestion de la case à cocher pour le mode torique
+                    // Gestion de la case a cocher pour le mode torique
                     else if (mouseX >= toroidalCheckbox.getPosition().x && mouseX <= toroidalCheckbox.getPosition().x + toroidalCheckbox.getSize().x &&
                             mouseY >= toroidalCheckbox.getPosition().y && mouseY <= toroidalCheckbox.getPosition().y + toroidalCheckbox.getSize().y) {
                         isToroidal = !isToroidal;
@@ -467,18 +607,26 @@ int main() {
                         isEditing = false;
                         editButton.setFillColor(sf::Color::Yellow);
 
-                        // Réinitialiser les compteurs
+                        // Reinitialiser les compteurs
                         livingCells = 0;
                         deadCells = width * height;
                         cellsCreated = 0;
                         cellsDestroyed = 0;
                     }
 
+                     // Bouton "Exit"
+                    if (mouseX >= exitButton.getPosition().x &&
+                        mouseX <= exitButton.getPosition().x + exitButton.getSize().x &&
+                        mouseY >= exitButton.getPosition().y &&
+                        mouseY <= exitButton.getPosition().y + exitButton.getSize().y) {
+                        game.state = Game::Accueil;
+                    }
+
                     // Bouton "Save"
                     else if (mouseX >= saveButton.getPosition().x && mouseX <= saveButton.getPosition().x + saveButton.getSize().x &&
                             mouseY >= saveButton.getPosition().y && mouseY <= saveButton.getPosition().y + saveButton.getSize().y) {
                         isTyping = true; // Activer la saisie du nom de fichier
-                        userInput = "";  // Réinitialiser l'entrée pour une nouvelle saisie
+                        userInput = "";  // Reinitialiser l'entree pour une nouvelle saisie
                     }
 
                     // Bouton "Undo"
@@ -517,7 +665,7 @@ int main() {
                         }
                     }
 
-                    // Sélection des cellules en mode édition ou en mode édition via le crayon
+                    // Selection des cellules en mode edition ou en mode edition via le crayon
                     else if (game.state == Game::Edition || (isEditing && (game.state == Game::Paused || game.state == Game::Finished))) {
                         if (mouseY < height * cellSize) {
                             int cellX = mouseX / cellSize;
@@ -552,7 +700,7 @@ int main() {
                 }
             }
 
-            // Gestion des événements de relâchement des boutons
+            // Gestion des evenements de relâchement des boutons
             if (event.type == sf::Event::MouseButtonReleased) {
                 if (event.mouseButton.button == sf::Mouse::Left) {
                     isMousePressed = false;
@@ -610,7 +758,7 @@ int main() {
             // Gestion du texte saisi
             if (isTyping && event.type == sf::Event::TextEntered) {
                 if (event.text.unicode == '\b' && !userInput.isEmpty()) {
-                    // Effacer le dernier caractère si "Backspace" est appuyé
+                    // Effacer le dernier caractère si "Backspace" est appuye
                     userInput.erase(userInput.getSize() - 1);
                 } else if (event.text.unicode < 128 && event.text.unicode != '\b') {
                     // Ajouter le caractère saisi (si c'est un caractère ASCII)
@@ -618,13 +766,13 @@ int main() {
                 }
             }
 
-            // Lors de l'appui sur "Enter", sauvegarder le jeu avec le nom entré
+            // Lors de l'appui sur "Enter", sauvegarder le jeu avec le nom entre
             if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Enter && isTyping) {
                 std::string filename = userInput.toAnsiString() + ".txt";
                 game.saveToFile(filename);
-                std::cout << "Jeu sauvegardé dans " << filename << std::endl;
+                std::cout << "Jeu sauvegarde dans " << filename << std::endl;
                 isTyping = false; // Arrêter la saisie après la sauvegarde
-                userInput = "";   // Réinitialiser l'entrée de l'utilisateur
+                userInput = "";   // Reinitialiser l'entree de l'utilisateur
             }
         }
 
@@ -774,6 +922,10 @@ int main() {
         window.draw(deadCellsText);
         window.draw(cellsCreatedText);
         window.draw(cellsDestroyedText);
+
+        // Dessiner le bouton "Exit"
+        window.draw(exitButton);
+        window.draw(exitSymbol);
 
         // Si l'aide est visible, dessiner la fenêtre d'aide
         if (isHelpVisible) {
