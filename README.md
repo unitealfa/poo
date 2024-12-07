@@ -118,20 +118,6 @@ g++ -std=c++17 -I . catch_amalgamated.cpp tests.cpp services/Game.cpp components
 
 ---
 
-## Diagrammes UML
-
-### Diagramme de classes
-Un diagramme de classes est inclus pour montrer la relation entre :
-- `Grid` et les différents types de cellules.
-- `Game` et ses interfaces (`Console`, `Graphics`).
-
-### Diagramme de séquence
-Le diagramme de séquence illustre :
-- L'initialisation du jeu.
-- L'interaction entre l'utilisateur et les cellules.
-
----
-
 ## Extensions possibles
 
 1. **Parallélisation** : Amélioration des performances pour les grandes grilles.
