@@ -139,7 +139,3 @@ g++ -std=c++17 -I . catch_amalgamated.cpp tests.cpp services/Game.cpp components
 - Documentation SFML : [SFML Documentation](https://www.sfml-dev.org/documentation/)
 - Tutoriel Git : [Atlassian Git Tutorials](https://www.atlassian.com/git/tutorials)
 - Références Catch2 : [Catch2 GitHub](https://github.com/catchorg/Catch2)
-
----
-
-Ce README, maintenant enrichi, fournit un aperçu clair et détaillé pour les développeurs et utilisateurs. Vous pouvez l'utiliser comme base pour un projet collaboratif professionnel.
